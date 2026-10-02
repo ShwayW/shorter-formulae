@@ -1,4 +1,4 @@
-# Supplementary Code
+# Synthesizing compact physics formulae
 
 ## 1. Installation
 
@@ -50,8 +50,13 @@ python download_llmsrbench.py
 
 ## 4. Our Model Weights
 
-The weights of our six transformers are too large for this archive and are hosted at
-<https://osf.io/ca7h6/overview?view_only=1718f6af44a8442ca914f7dbf75682bf>.
-Download its `checkpoints/` folder into `checkpoints/` here, so that each model sits in
-its own `checkpoints/<name>_res/` folder. `checkpoints/readme` describes each model and
-how to evaluate it.
+The weights of our six transformers are hosted on Hugging Face at
+<https://huggingface.co/ShwayW/shorter-formulae>. Download them into `checkpoints/` here,
+so that each model sits in its own `checkpoints/<name>_res/` folder:
+
+```bash
+hf download ShwayW/shorter-formulae --local-dir checkpoints
+```
+
+`checkpoints/readme` (and the model card on Hugging Face) describes each model and how to
+evaluate it.
