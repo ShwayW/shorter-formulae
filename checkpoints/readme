@@ -1,0 +1,31 @@
+Model checkpoints
+=================
+
+Each model lives in its own folder, checkpoints/<name>_res/, holding fixed_weights.pth
+(the two 145M models) or model_fixed_Van_checkpoint.pth (the four ablation models).
+Evaluate one with:
+
+    python eval_mymodels.py --model <name>                          # SRBench
+    python eval_mymodels.py --model <name> --benchmark llmsrbench   # LLM-SRBench
+
+Folder names read <params>_<max formula length>_simp<0|1>[_float][_ftnoise_...]:
+simp1 = targets simplified to canonical form, float = constants not restricted to the
+symbolic set, ftnoise = further trained on noise-corrupted targets.
+
+Folder                                   Model
+---------------------------------------  -------------------------------------------------
+145M_80_simp1_float_ftnoise_48h_res      Our transformer ("ours" in every figure and table):
+                                         145M parameters, formulae up to 80 tokens,
+                                         simplified targets, further trained for 48 h on
+                                         noise-corrupted targets (epsilon ~ U(0, 0.1), half
+                                         the formulae noise-free, peak LR 5e-5).
+145M_80_simp1_float_res                  The same transformer before fine-tuning on noisy
+                                         targets; the fine-tuning above resumes from it.
+
+Ablation: affine transformation x simplification (89M parameters, trained from scratch
+on up to 120M data instances; "prefac" = affine transformation):
+
+prefac_on_t120M_res                      affine = on,  simplification = on
+prefac_on_nosimp_t120M_res               affine = on,  simplification = off
+prefac_off_t120M_res                     affine = off, simplification = on
+simp_off_t120M_res                       affine = off, simplification = off

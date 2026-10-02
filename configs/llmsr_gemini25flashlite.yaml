@@ -1,0 +1,23 @@
+# Cheap sanity-check backend: Gemini 2.5 Flash-Lite on Vertex AI.
+# Same schema as llmsr_gemini35flash.yaml -- use this to smoke-test the plumbing
+# before spending budget on gemini-3.5-flash.
+name: Llmsr-Gemini25FlashLite
+class_name: LLMSRSearcher
+
+api_type: "gemini"
+api_model: "gemini-2.5-flash-lite"
+vertexai: true
+project: "vadimbulitko-cs"
+location: "global"
+
+# flash-lite does no thinking by default, so this is a no-op here -- kept explicit
+# for parity with the 3.5-flash config.
+thinking_budget: 0
+
+global_max_sample_num: 1000
+samples_per_prompt: 4
+num_islands: 10
+
+# Good-enough early stop on TRAIN R^2 (see llmsr_gemini35flash.yaml). Default null =
+# disabled; enable per run with `--early-stop-train-r2 0.99`.
+early_stop_train_r2: null

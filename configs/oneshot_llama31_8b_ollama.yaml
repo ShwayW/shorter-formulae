@@ -1,0 +1,25 @@
+# One-shot LLM baseline backed by a locally-served Llama-3.1-8B via ollama.
+#
+# For workstation smoke tests: `ollama serve` exposes an OpenAI-compatible endpoint
+# on http://localhost:11434/v1, so the same OneShotSearcher code path runs here and
+# on a cluster vLLM node (configs/oneshot_llama31_8b_vllm.yaml). Nothing is billed.
+#
+#     ollama pull llama3.1:8b     # once
+#     python eval_oneshot.py --searcher_config configs/oneshot_llama31_8b_ollama.yaml \
+#                            --benchmark srbench --max-problems 5
+name: Oneshot-Llama31-8B
+class_name: OneShotSearcher
+
+# --- LLM backend ---
+api_type: "ollama"                       # -> OpenAI-compatible client
+api_model: "llama3.1:8b"                 # must match `ollama list`
+api_url: "http://localhost:11434/v1"
+api_key: "ollama"                        # placeholder; ollama ignores it
+api_timeout: 300.0
+temperature: 0.0                         # deterministic single draw
+max_tokens: 1024
+
+# --- One-shot protocol ---
+n_prompt_rows: 30      # observations shown to the model
+max_retries: 2         # extra calls allowed only when a reply fails to parse
+num_candidates: 1      # 1 = pure one-shot; >1 draws k formulas, keeps best TRAIN MSE

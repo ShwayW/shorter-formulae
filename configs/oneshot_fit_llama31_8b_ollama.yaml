@@ -1,0 +1,39 @@
+# One-shot LLM baseline, SKELETON + BFGS variant, on a locally-served Llama-3.1-8B.
+#
+# One LLM call proposes the formula STRUCTURE with its numeric coefficients left free
+# (c0, c1, ...); scipy BFGS then fits them to the TRAIN split. That is LLMSR's optimizer
+# step run exactly once, with no search loop -- so the gap to
+# configs/oneshot_llama31_8b_ollama.yaml (mode: direct) measures what constant fitting
+# alone buys, and the gap to configs/llmsr_llama31_8b_vllm.yaml measures the search.
+#
+# For workstation smoke tests: `ollama serve` exposes an OpenAI-compatible endpoint
+# on http://localhost:11434/v1, so the same OneShotSearcher code path runs here and
+# on a cluster vLLM node (configs/oneshot_llama31_8b_vllm.yaml). Nothing is billed.
+#
+#     ollama pull llama3.1:8b     # once
+#     python eval_oneshot.py --searcher_config configs/oneshot_fit_llama31_8b_ollama.yaml \
+#                            --benchmark srbench --max-problems 5
+name: Oneshot-Fit-Llama31-8B
+class_name: OneShotSearcher
+
+# --- LLM backend ---
+api_type: "ollama"                       # -> OpenAI-compatible client
+api_model: "llama3.1:8b"                 # must match `ollama list`
+api_url: "http://localhost:11434/v1"
+api_key: "ollama"                        # placeholder; ollama ignores it
+api_timeout: 300.0
+temperature: 0.0                         # deterministic single draw
+max_tokens: 1024
+
+# --- One-shot protocol ---
+mode: "skeleton"       # LLM writes structure with free constants; BFGS fits them to TRAIN
+n_prompt_rows: 30      # observations shown to the model
+max_retries: 2         # extra calls allowed only when a reply fails to parse
+num_candidates: 1      # 1 = pure one-shot; >1 draws k formulas, keeps best TRAIN MSE
+
+# --- BFGS constant fitting (skeleton mode only) ---
+# Same optimizer and objective as LLMSR's parameter-optimization step: scipy BFGS on the
+# mean squared error, first start all-ones. Restarts are the one addition -- a one-call
+# method fits a single skeleton, so an unlucky basin would be scored as a wrong structure.
+n_restarts: 4          # BFGS starts per skeleton (first all-ones, rest seeded-random)
+fit_max_rows: 5000     # TRAIN rows used by the fit (null = all; LLM-SRBench ships 80k)

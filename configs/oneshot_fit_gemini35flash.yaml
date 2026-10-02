@@ -1,0 +1,38 @@
+# One-shot LLM baseline, SKELETON + BFGS variant, backed by Gemini 3.5 Flash on Vertex.
+#
+# One LLM call proposes the formula STRUCTURE with its coefficients left free
+# (c0, c1, ...); scipy BFGS then fits them to the TRAIN split -- LLMSR's optimizer step
+# run exactly once, with no search loop. Same backbone and auth as
+# configs/llmsr_gemini35flash.yaml, so the gap between the two is the search itself.
+#
+# Auth is Google ADC (`gcloud auth application-default login`), NOT an API key -- the
+# client is built from the project/location below (cf. test_llm.py). This backend IS
+# billed, but at ~1 call per problem it is ~210 calls for both benchmarks.
+#
+#     python eval_oneshot.py --searcher_config configs/oneshot_fit_gemini35flash.yaml \
+#                            --benchmark srbench
+name: Oneshot-Fit-Gemini35Flash
+class_name: OneShotSearcher
+
+# --- LLM backend ---
+api_type: "gemini"            # selects the Gemini/Vertex path in llm_methods/oneshot/llm.py
+api_model: "gemini-3.5-flash"
+vertexai: true
+project: "vadimbulitko-cs"
+location: "global"
+temperature: 0.0
+max_tokens: 1024
+
+# Cost control, matching configs/llmsr_gemini35flash.yaml: 0 disables the model's
+# internal "thinking" tokens (billed as output). null/remove = model default.
+thinking_budget: 0
+
+# --- One-shot protocol ---
+mode: "skeleton"       # LLM writes structure with free constants; BFGS fits them to TRAIN
+n_prompt_rows: 30      # observations shown to the model
+max_retries: 2         # extra calls allowed only when a reply fails to parse
+num_candidates: 1      # 1 = pure one-shot; >1 draws k formulas, keeps best TRAIN MSE
+
+# --- BFGS constant fitting (skeleton mode only) ---
+n_restarts: 4          # BFGS starts per skeleton (first all-ones, rest seeded-random)
+fit_max_rows: 5000     # TRAIN rows used by the fit (null = all; LLM-SRBench ships 80k)

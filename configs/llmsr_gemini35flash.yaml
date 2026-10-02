@@ -1,0 +1,29 @@
+# LLMSR searcher backed by Gemini 3.5 Flash on Vertex AI.
+# Auth is Google ADC (run `gcloud auth application-default login`), NOT an API
+# key -- so there is no api_key / api_url here; the sampler builds a Vertex
+# `google.genai` client from the project/location below (cf. test_llm.py).
+name: Llmsr-Gemini35Flash
+class_name: LLMSRSearcher
+
+# --- LLM backend ---
+api_type: "gemini"            # selects the Gemini/Vertex sampler path
+api_model: "gemini-3.5-flash"
+vertexai: true
+project: "vadimbulitko-cs"
+location: "global"
+
+# Cost control: 0 disables the model's internal "thinking" tokens (billed as
+# output), ~3x cheaper on 3.5-flash. Set to null/remove to use the model default,
+# or a positive int to cap (not disable) thinking.
+thinking_budget: 0
+
+# --- LLMSR search hyperparameters (match the paper defaults) ---
+global_max_sample_num: 1000   # LLM calls per problem before stopping
+samples_per_prompt: 4         # hypotheses drawn per prompt
+num_islands: 10               # experience-buffer islands
+
+# Good-enough early stop: stop a problem once the best skeleton's TRAIN R^2 exceeds
+# this (saves cost/time on easy problems). Train-only, so the held-out test metric
+# stays honest. Default null = disabled (full budget). Enable here (e.g. 0.99) or per
+# run with `--early-stop-train-r2 0.99`.
+early_stop_train_r2: null

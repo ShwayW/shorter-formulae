@@ -1,0 +1,26 @@
+# One-shot LLM baseline backed by a *self-hosted* Llama-3.1-8B-Instruct served with
+# vLLM -- the cluster twin of configs/oneshot_llama31_8b_ollama.yaml, and the same
+# backend as configs/llmsr_llama31_8b_vllm.yaml so the one-shot and LLMSR numbers are
+# comparable on identical hardware and weights. Free: no cloud API is called.
+#
+# On a GPU node, launch the server first (see slurm/setup_vllm.sh):
+#     vllm serve meta-llama/Llama-3.1-8B-Instruct \
+#         --served-model-name meta-llama/Llama-3.1-8B-Instruct \
+#         --host 127.0.0.1 --port 8000 --dtype bfloat16
+# then run eval_oneshot.py once it reports "Uvicorn running".
+name: Oneshot-Llama31-8B-vLLM
+class_name: OneShotSearcher
+
+# --- LLM backend ---
+api_type: "vllm"                         # -> OpenAI-compatible client
+api_model: "meta-llama/Llama-3.1-8B-Instruct"   # MUST match vLLM --served-model-name
+api_url: "http://localhost:8000/v1"   # keep "localhost"; $ONESHOT_API_URL overrides
+api_key: "EMPTY"                          # placeholder; self-hosted vLLM ignores it
+api_timeout: 300.0
+temperature: 0.0                         # deterministic single draw
+max_tokens: 1024
+
+# --- One-shot protocol ---
+n_prompt_rows: 30      # observations shown to the model
+max_retries: 2         # extra calls allowed only when a reply fails to parse
+num_candidates: 1      # 1 = pure one-shot; >1 draws k formulas, keeps best TRAIN MSE

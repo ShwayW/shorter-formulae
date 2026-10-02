@@ -1,0 +1,45 @@
+# LLMSR searcher backed by a *self-hosted* Qwen2.5-Coder-32B-Instruct served with vLLM.
+#
+# Same free/self-hosted recipe as configs/llmsr_llama31_8b_vllm.yaml (vLLM exposes an
+# OpenAI-compatible HTTP endpoint on the local GPU node and the sampler's AsyncOpenAI
+# client is pointed at it -- no cloud API, nothing billed), but with a 4x larger,
+# code-specialised backbone. Every search hyperparameter below is IDENTICAL to the
+# Llama config so the two runs differ only in the LLM.
+#
+# Unlike Llama-3.1, Qwen2.5-Coder is NOT gated (Apache-2.0) -- no HF licence click,
+# though $HF_TOKEN still helps avoid anonymous rate limits while downloading.
+#
+# bf16 weights are ~65 GB, which does NOT fit one 46 GB L40S: the job serves it with
+# --tensor-parallel-size 2 (see slurm/eval_llmsr_qwen_vllm.sh, which requests gpu:2).
+#
+# On cluster the server is launched on the SAME node as the eval, e.g.:
+#     vllm serve Qwen/Qwen2.5-Coder-32B-Instruct \
+#         --served-model-name Qwen/Qwen2.5-Coder-32B-Instruct \
+#         --host 127.0.0.1 --port 8000 --dtype bfloat16 --tensor-parallel-size 2
+# then run eval_llmsr.py once the server reports "Uvicorn running".
+name: Llmsr-Qwen25-Coder-32B-vLLM
+class_name: LLMSRSearcher
+
+# --- LLM backend ---
+api_type: "vllm"                                   # -> LocalLLM (OpenAI-compatible path)
+api_model: "Qwen/Qwen2.5-Coder-32B-Instruct"       # MUST match vLLM --served-model-name
+api_url: "http://localhost:8000/v1"                # keep "localhost" so LocalLLM uses OpenAI path
+api_key: "EMPTY"                                    # placeholder; self-hosted vLLM ignores it
+
+# Per-request client timeout (seconds). The upstream sampler hardcodes 60s and retries
+# forever on timeout (`except: continue`), which is fine for an 8B model but not for a
+# 32B one: under N_SHARDS x samples_per_prompt concurrency a 1024-token completion can
+# take well over a minute, and every timeout would throw away a finished generation and
+# re-queue it, thrashing the server. 300s is comfortably above the observed tail.
+api_timeout: 300
+
+# --- LLMSR search hyperparameters (identical to the Llama/Gemini configs for parity) ---
+global_max_sample_num: 1000   # LLM calls per problem before stopping
+samples_per_prompt: 4         # hypotheses drawn per prompt (fanned out concurrently)
+num_islands: 10               # experience-buffer islands
+
+# Good-enough early stop: stop a problem once the best skeleton's TRAIN R^2 exceeds
+# this. Train-only, so the held-out test metric stays honest. null = disabled (full
+# budget); the sbatch script sets it PER SPLIT with --early-stop-train-r2 to reproduce
+# exactly what the Llama run did (lsr_transform: 0.99, feynman: off).
+early_stop_train_r2: null

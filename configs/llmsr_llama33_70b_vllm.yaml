@@ -1,0 +1,32 @@
+# LLMSR searcher backed by a *self-hosted* Llama-3.3-70B-Instruct served with vLLM.
+#
+# The large-backbone arm of the free (unbilled) family: identical protocol to
+# configs/llmsr_llama31_8b_vllm.yaml, so 8B -> 70B is a clean backbone swap and the
+# gap between the two curves is model scale alone. Contrast with the paid Gemini
+# config, where backbone AND vendor both change.
+#
+# 70B in bf16 is ~141 GB of weights, so it CANNOT be served on one GPU. On cluster
+# use 4x H100-80GB with tensor parallelism:
+#     vllm serve meta-llama/Llama-3.3-70B-Instruct \
+#         --served-model-name meta-llama/Llama-3.3-70B-Instruct \
+#         --host 127.0.0.1 --port 8000 --dtype bfloat16 \
+#         --tensor-parallel-size 4
+# or via the job script:  TP=4 MODEL=meta-llama/Llama-3.3-70B-Instruct sbatch ...
+name: Llmsr-Llama33-70B-vLLM
+class_name: LLMSRSearcher
+
+# --- LLM backend ---
+api_type: "vllm"                                   # -> LocalLLM (OpenAI-compatible path)
+api_model: "meta-llama/Llama-3.3-70B-Instruct"     # MUST match vLLM --served-model-name
+api_url: "http://localhost:8000/v1"                # keep "localhost" so LocalLLM uses OpenAI path
+api_key: "EMPTY"                                   # placeholder; self-hosted vLLM ignores it
+
+# --- LLMSR search hyperparameters (match the 8B / Gemini configs for parity) ---
+global_max_sample_num: 1000   # LLM calls per problem before stopping
+samples_per_prompt: 4         # hypotheses drawn per prompt (fanned out concurrently)
+num_islands: 10               # experience-buffer islands
+
+# Good-enough early stop: stop a problem once the best skeleton's TRAIN R^2 exceeds
+# this. Train-only, so the held-out test metric stays honest. null = disabled (full
+# budget); enable here (e.g. 0.99) or per run with `--early-stop-train-r2 0.99`.
+early_stop_train_r2: null

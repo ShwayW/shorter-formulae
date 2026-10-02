@@ -1,0 +1,19 @@
+Benchmark data is not shipped (size limit). Only feynman/FeynmanEquations.csv is included.
+Full instructions: see the "Datasets" section of ../README.md. Run all commands from the
+supplementary-material root.
+
+pmlb/                     119 feynman_* datasets from PMLB (https://github.com/EpistasisLab/pmlb)
+                            GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/EpistasisLab/pmlb datasets/pmlb
+                            (cd datasets/pmlb && git lfs pull --include="datasets/feynman_*")
+
+llmsrbench/               LLM-SRBench (https://huggingface.co/datasets/nnheui/llm-srbench)
+                            python download_llmsrbench.py
+
+feynman_ood_g<gap>.pkl.gz     OOD sets, regenerated from the two benchmarks above
+llmsrbench_ood_g<gap>.pkl.gz    for g in 0 1 2 4 8 16 32 64 128; do
+                                  python gen_ood_data.py       --gap $g --n-points 10000 --seed 0
+                                  python gen_ood_llmsrbench.py --gap $g --n-points 10000 --seed 0
+                                done
+
+../srbench/results/*.feather  SRBench published results (plotting only), from
+                              https://github.com/cavalab/srbench (results/, Git LFS)

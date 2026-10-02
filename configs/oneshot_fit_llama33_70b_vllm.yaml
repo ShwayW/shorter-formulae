@@ -1,0 +1,36 @@
+# One-shot LLM baseline backed by a *self-hosted* Llama-3.3-70B-Instruct served with
+# vLLM -- the 70B twin of configs/oneshot_fit_llama31_8b_vllm.yaml, and the same
+# backend as configs/llmsr_llama33_70b_vllm.yaml so the one-shot and LLMSR numbers
+# are comparable on identical hardware and weights. Free: no cloud API is called.
+#
+# Every protocol knob below is byte-identical to the 8B config; only api_model
+# differs. That is deliberate -- the one-shot arm's whole job is to isolate the
+# backbone's formula prior, so the prompt, the parse, and the BFGS fit must not move
+# when the model does.
+#
+# 70B needs tensor parallelism (~141 GB bf16); see the LLMSR config for the serve
+# command, or use the job script with TP=4.
+name: Oneshot-Fit-Llama33-70B-vLLM
+class_name: OneShotSearcher
+
+# --- LLM backend ---
+api_type: "vllm"                                # -> OpenAI-compatible client
+api_model: "meta-llama/Llama-3.3-70B-Instruct"  # MUST match vLLM --served-model-name
+api_url: "http://localhost:8000/v1"             # keep "localhost"; $ONESHOT_API_URL overrides
+api_key: "EMPTY"                                # placeholder; self-hosted vLLM ignores it
+api_timeout: 300.0
+temperature: 0.0                                # deterministic single draw
+max_tokens: 1024
+
+# --- One-shot protocol ---
+mode: "skeleton"       # LLM writes structure with free constants; BFGS fits them to TRAIN
+n_prompt_rows: 30      # observations shown to the model
+max_retries: 2         # extra calls allowed only when a reply fails to parse
+num_candidates: 1      # 1 = pure one-shot; >1 draws k formulas, keeps best TRAIN MSE
+
+# --- BFGS constant fitting (skeleton mode only) ---
+# Same optimizer and objective as LLMSR's parameter-optimization step: scipy BFGS on the
+# mean squared error, first start all-ones. Restarts are the one addition -- a one-call
+# method fits a single skeleton, so an unlucky basin would be scored as a wrong structure.
+n_restarts: 4          # BFGS starts per skeleton (first all-ones, rest seeded-random)
+fit_max_rows: 5000     # TRAIN rows used by the fit (null = all; LLM-SRBench ships 80k)

@@ -1,0 +1,30 @@
+# LLMSR searcher backed by a *self-hosted* Llama-3.1-8B-Instruct served with vLLM.
+#
+# This backend is FREE: vLLM exposes an OpenAI-compatible HTTP endpoint on the
+# local GPU node, and the sampler's AsyncOpenAI client is pointed at it. No cloud
+# API is called and nothing is billed (api_key below is a placeholder the server
+# ignores). Contrast with configs/llmsr_gemini35flash.yaml, which hits paid Vertex.
+#
+# On cluster, launch the server on the SAME node as the eval, e.g.:
+#     vllm serve meta-llama/Llama-3.1-8B-Instruct \
+#         --served-model-name meta-llama/Llama-3.1-8B-Instruct \
+#         --host 127.0.0.1 --port 8000 --dtype bfloat16
+# then run eval_llmsr.py once the server reports "Uvicorn running".
+name: Llmsr-Llama31-8B-vLLM
+class_name: LLMSRSearcher
+
+# --- LLM backend ---
+api_type: "vllm"                                   # -> LocalLLM (OpenAI-compatible path)
+api_model: "meta-llama/Llama-3.1-8B-Instruct"      # MUST match vLLM --served-model-name
+api_url: "http://localhost:8000/v1"                # keep "localhost" so LocalLLM uses OpenAI path
+api_key: "EMPTY"                                    # placeholder; self-hosted vLLM ignores it
+
+# --- LLMSR search hyperparameters (match the paper / Gemini config for parity) ---
+global_max_sample_num: 1000   # LLM calls per problem before stopping
+samples_per_prompt: 4         # hypotheses drawn per prompt (fanned out concurrently)
+num_islands: 10               # experience-buffer islands
+
+# Good-enough early stop: stop a problem once the best skeleton's TRAIN R^2 exceeds
+# this. Train-only, so the held-out test metric stays honest. null = disabled (full
+# budget); enable here (e.g. 0.99) or per run with `--early-stop-train-r2 0.99`.
+early_stop_train_r2: null

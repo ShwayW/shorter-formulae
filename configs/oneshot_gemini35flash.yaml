@@ -1,0 +1,33 @@
+# One-shot LLM baseline, DIRECT variant, backed by Gemini 3.5 Flash on Vertex.
+#
+# One LLM call writes the whole formula, numeric constants included, and that expression
+# is the answer -- no search loop and no optimizer. The control arm for
+# configs/oneshot_fit_gemini35flash.yaml (same backbone, + BFGS constant fitting).
+#
+# Auth is Google ADC (`gcloud auth application-default login`), NOT an API key -- the
+# client is built from the project/location below (cf. test_llm.py). This backend IS
+# billed, but at ~1 call per problem it is ~210 calls for both benchmarks.
+#
+#     python eval_oneshot.py --searcher_config configs/oneshot_gemini35flash.yaml \
+#                            --benchmark srbench
+name: Oneshot-Gemini35Flash
+class_name: OneShotSearcher
+
+# --- LLM backend ---
+api_type: "gemini"            # selects the Gemini/Vertex path in llm_methods/oneshot/llm.py
+api_model: "gemini-3.5-flash"
+vertexai: true
+project: "vadimbulitko-cs"
+location: "global"
+temperature: 0.0
+max_tokens: 1024
+
+# Cost control, matching configs/llmsr_gemini35flash.yaml: 0 disables the model's
+# internal "thinking" tokens (billed as output). null/remove = model default.
+thinking_budget: 0
+
+# --- One-shot protocol ---
+mode: "direct"        # the reply IS the answer: constants as written, nothing refit
+n_prompt_rows: 30      # observations shown to the model
+max_retries: 2         # extra calls allowed only when a reply fails to parse
+num_candidates: 1      # 1 = pure one-shot; >1 draws k formulas, keeps best TRAIN MSE
